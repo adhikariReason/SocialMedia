@@ -1,6 +1,6 @@
 from controllers import auth, posts, follow, users
 from fastapi import APIRouter
-router = APIRouter()
+router = APIRouter(prefix='/')
 
 router.include_router(auth.router)
 router.include_router(posts.router)
