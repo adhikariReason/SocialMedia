@@ -4,7 +4,6 @@ from firebase_admin import db
 from credentials.database import firebasedb
 from controllers.auth import protected
 
-
 db = firebasedb()
 router = APIRouter(prefix="/posts")
 
@@ -26,7 +25,7 @@ async def create_post(content: str, username: str, visibility: str):
     }
     
     # Save the new post to Firebase Realtime Database
-    db.child(f"posts/{new_post_id}").set(new_post)    
+    db.child(f"posts/{new_post_id}").set(new_post)
     post_created_ref = db.child(f"users/{username}/editAccess/ids")
     post_created_ids = post_created_ref.get()
     if post_created_ids is None:
@@ -43,9 +42,9 @@ async def get_all_posts(usernames: str):
 	username_list = usernames.split(",")
 	all_posts = []
 	for username in username_list:
-				postAccess = db.child('users').child(username).child("postAccess").child("ids").get()
-				if not postAccess is None:
-					posts = [db.child('posts').child(x).get() for x in postAccess]
+				posts1 = db.child('users').child(username).child("editAccess").child("ids").get()
+				if not posts1 is None:
+					posts = [db.child('posts').child(x).get() for x in posts1 if db.child(f"posts/{x}/visibility").get() == "public"]
 					all_posts.extend(posts)
 	if len(all_posts) == 0:
 		raise HTTPException(status_code=404, detail="No post Available")
@@ -58,3 +57,22 @@ async def change_visibility(username:str, postId: str, type: str):
 		raise HTTPException(status_code=404, detail="No edit permission")
 	post = db.child('posts').child(postId).child("visibility").set(type)
 	return "Done"
+
+
+'''
+# Needs filtration!!!
+# Right Now: Gets all the data from all the people that are followed by the user,
+	Sort them date wise with latest first and display to the user.
+	Only looks for visibility of private. Need to introduce the listed as well.
+# Future Plan: Only get recommended data from the database. Check for visibility as well.
+'''
+@router.get("/get/timeline")
+async def get_timeline(username: str, offset: int):
+	follows = db.child(f"users/{username}/followed/ids").get()
+	followed_users = list(follows.keys())
+	all_posts = await (get_all_posts(','.join(followed_users)))
+
+	all_posts.sort(key=lambda x: x['createdAt'], reverse=True)
+	return all_posts
+
+
